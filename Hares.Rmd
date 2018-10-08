@@ -1,0 +1,61 @@
+---
+title: "Hares"
+output: html_notebook
+---
+```{r}
+library(mrds)
+library(Distance)
+library(plyr)
+```
+
+```{r}
+hareData <- read.table(
+  "data.txt",
+  sep="\t", header=TRUE)
+hareData$ID <- seq.int(nrow(hareData))
+head(hareData)
+```
+
+Work out the regions
+```{r}
+hareRegions <- rename(unique(hareData[, 1:2]), c("STUDY.SITE"="Region.Label", "AREA"="Area"))
+head(hareRegions)
+```
+
+Work out the samples
+```{r}
+hareSamples <- subset(
+  rename(unique(hareData[, 1:4]), 
+         c("STUDY.SITE"="Region.Label", "TRANSECT.NUMBER"="Sample.Label", "TRANSECT.LENGTH.KM"="Effort")),
+  select=c("Region.Label", "Sample.Label", "Effort"))
+head(hareSamples)
+```
+
+Work out the observations
+```{r}
+hareObservations <- subset(
+  rename(hareData, c("ID"="object", "STUDY.SITE"="Region.Label", "TRANSECT.NUMBER"="Sample.Label")),
+  select=c("object","Region.Label","Sample.Label"))
+head(hareObservations)
+```
+
+Now create actual data
+distanceFromTransect = DISTANCE.METRES * sin(ANGLE)
+```{r}
+hareData$distance = hareData$DISTANCE..METRES * sin(hareData$ANGLE)
+data <- subset(
+  rename(hareData, c("ID"="object", "CLUSTER.SIZE"="size")),
+  select=c("object","size","distance"))
+head(data)
+```
+
+
+```{r}
+halfnorm.hares <- ds(data, 
+                     key="hn", 
+                     adjustment="cos", 
+                     region.table = hareRegions, 
+                     sample.table = hareSamples,
+                     obs.table = hareObservations)
+```
+
