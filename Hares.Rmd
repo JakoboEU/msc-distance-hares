@@ -6,6 +6,7 @@ output: html_notebook
 library(mrds)
 library(Distance)
 library(plyr)
+library(knitr)
 ```
 
 ```{r}
@@ -58,4 +59,48 @@ halfnorm.hares <- ds(data,
                      sample.table = hareSamples,
                      obs.table = hareObservations)
 ```
+
+```{r}
+par(mfrow=c(1,2))
+plot(halfnorm.hares, main="Hares, half-normal detection function")
+fit.test <- ddf.gof(halfnorm.hares$ddf)
+```
+
+```{r}
+kable(halfnorm.hares$dht$individuals$summary,format="markdown")
+```
+```{r}
+kable(halfnorm.hares$dht$individuals$D,format="markdown")
+```
+
+```{r}
+AIC(halfnorm.hares)
+```
+
+
+```{r}
+hazard.hares <- ds(data, key="hr",  adjustment="poly",
+                     truncation = "20%",
+                     region.table = hareRegions, 
+                     sample.table = hareSamples,
+                     obs.table = hareObservations)
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+plot(hazard.hares, main="Hares, hazard detection function")
+fit.test <- ddf.gof(hazard.hares$ddf)
+```
+
+
+
+
+
+
+
+
+
+
+
 
