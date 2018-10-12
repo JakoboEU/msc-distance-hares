@@ -32,10 +32,17 @@ observations <- subset(
   rename(hareData, c("ID"="object", "STUDY.SITE"="Region.Label", "TRANSECT.NUMBER"="Sample.Label")),
   select=c("object","Region.Label","Sample.Label"))
 
-hareData$distance = abs(hareData$DISTANCE..METRES * sin(hareData$ANGLE))
+hareData$distance = abs(round(hareData$DISTANCE..METRES * sin(hareData$ANGLE * pi / 180)))
 data <- subset(
   rename(hareData, c("ID"="object", "CLUSTER.SIZE"="size", "ANGLE"="angle", "DISTANCE..METRES."="true_distance")), 
   select=c("object","size","distance","angle","true_distance"))
+
+# and now smear angle
+# * the angles are already all positive, so smear upwards 
+# * angles more or less bucketted in 10s, so smear up to 10
+data$smear = runif(nrow(data), max=1, min=0)
+data$smeared_angle = abs(data$angle + (data$smear * 20))
+data$new_distance = abs(round(data$true_distance * sin(data$smeared_angle * pi / 180)))
 ```
 
 
@@ -79,17 +86,8 @@ angle.size.line <- lm(size~angle, data=data)
 lines(angle.size.linedata$angle, as.vector(predict(angle.size.line,angle.size.linedata)))
 ```
 
-```{r}
-hist(data$angle[data$angle < 20],main="",xlab="Angle under 20")
-```
-
-
-
 
 ```{r}
-data$smear = runif(nrow(data), max=0.5, min=-0.5)
-data$smeared_angle = abs(data$angle + (data$smear * 10))
-
 p1 <- hist(data$smeared_angle,main="",xlab="Smeared angle", plot = FALSE)
 p2 <- hist(data$angle,main="",xlab="Angle", plot = FALSE)
 
@@ -100,40 +98,28 @@ plot(p2,col="blue",density=10,angle=45,add=TRUE)
 
 
 ```{r}
-sdata <- subset(data, select=c("object","size","smeared_angle","true_distance"))
-sdata$distance = abs(sdata$true_distance * sin(sdata$smeared_angle))
-```
-
-```{r}
-d1 <- hist(sdata$distance,main="",xlab="Distance after smearing", plot = FALSE)
+d1 <- hist(data$new_distance,main="",xlab="Distance after smearing", plot = FALSE)
 d2 <- hist(data$distance,main="",xlab="Distance before smearing", plot = FALSE)
 
 
-plot(0,0,type="n",xlim=c(0,600),ylim=c(0,150),main="Affect of smearing the angle (green is affect of smearing away from blue)")
+plot(0,0,type="n",xlim=c(0,600),ylim=c(0,150),main="Affect of smearing the angle on distance (green is affect of smearing away from blue)")
 plot(d1,col="green",density=10,angle=135,add=TRUE)
 plot(d2,col="blue",density=10,angle=45,add=TRUE)
 ```
 
+
 ```{r}
-d.uniform.poly <- ds(data, key="unif", adjustment="poly",
+smeared.data <- rename(subset(data, select=c("object","size","new_distance")), c("new_distance"="distance")) 
+```
+
+```{r}
+d.uniform.poly <- ds(data, key="hr", adjustment="herm", truncation = 400,
              region.table = regions, sample.table = samples, obs.table = observations)
-d.halfnorm.cos <- ds(data, key="hn", adjustment="cos",
-             region.table = regions, sample.table = samples, obs.table = observations)
-d.hazard.herm <- ds(data, key="hr", adjustment="herm",
-             region.table = regions, sample.table = samples, obs.table = observations)
-s.uniform.poly <- ds(sdata, key="unif", adjustment="poly",
-             region.table = regions, sample.table = samples, obs.table = observations)
-s.halfnorm.cos <- ds(sdata, key="hn", adjustment="cos",
-             region.table = regions, sample.table = samples, obs.table = observations)
-s.hazard.herm <- ds(sdata, key="hr", adjustment="herm",
+s.uniform.poly <- ds(smeared.data, key="hr", adjustment="herm", truncation = 400,
              region.table = regions, sample.table = samples, obs.table = observations)
 ```
 
 ```{r}
-plot(d.uniform.poly)
-plot(d.halfnorm.cos)
-plot(d.hazard.herm)
-plot(s.uniform.poly)
-plot(s.halfnorm.cos)
-plot(s.hazard.herm)
+ds.gof(d.uniform.poly)
+ds.gof(s.uniform.poly)
 ```
