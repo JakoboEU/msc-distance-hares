@@ -115,16 +115,25 @@ plot(d2,col="blue",density=10,angle=45,add=TRUE)
 ```
 
 ```{r}
-uniform.poly <- ds(data, key="unif", adjustment="poly",
+d.uniform.poly <- ds(data, key="unif", adjustment="poly",
              region.table = regions, sample.table = samples, obs.table = observations)
-halfnorm.cos <- ds(data, key="hn", adjustment="cos",
+d.halfnorm.cos <- ds(data, key="hn", adjustment="cos",
              region.table = regions, sample.table = samples, obs.table = observations)
-hazard.herm <- ds(data, key="hr", adjustment="herm",
+d.hazard.herm <- ds(data, key="hr", adjustment="herm",
+             region.table = regions, sample.table = samples, obs.table = observations)
+s.uniform.poly <- ds(sdata, key="unif", adjustment="poly",
+             region.table = regions, sample.table = samples, obs.table = observations)
+s.halfnorm.cos <- ds(sdata, key="hn", adjustment="cos",
+             region.table = regions, sample.table = samples, obs.table = observations)
+s.hazard.herm <- ds(sdata, key="hr", adjustment="herm",
              region.table = regions, sample.table = samples, obs.table = observations)
 ```
 
 ```{r}
-plot(uniform.poly)
-plot(halfnorm.cos)
-plot(hazard.herm)
+plot(d.uniform.poly)
+plot(d.halfnorm.cos)
+plot(d.hazard.herm)
+plot(s.uniform.poly)
+plot(s.halfnorm.cos)
+plot(s.hazard.herm)
 ```
