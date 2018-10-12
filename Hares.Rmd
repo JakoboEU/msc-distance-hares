@@ -2,13 +2,14 @@
 title: "Hares"
 output: html_notebook
 ---
-```{r}
+```{r setup}
 library(mrds)
 library(Distance)
 library(plyr)
 library(knitr)
 ```
 
+Read in data
 ```{r}
 hareData <- read.table(
   "data.txt",
@@ -17,90 +18,114 @@ hareData$ID <- seq.int(nrow(hareData))
 head(hareData)
 ```
 
-Work out the regions
-```{r}
-hareRegions <- rename(unique(hareData[, 1:2]), c("STUDY.SITE"="Region.Label", "AREA"="Area"))
-head(hareRegions)
-```
+Set up data sets for regions, samples, observations and data:
 
-Work out the samples
 ```{r}
-hareSamples <- subset(
+regions <- rename(unique(hareData[, 1:2]), c("STUDY.SITE"="Region.Label", "AREA"="Area"))
+
+samples <- subset(
   rename(unique(hareData[, 1:4]), 
          c("STUDY.SITE"="Region.Label", "TRANSECT.NUMBER"="Sample.Label", "TRANSECT.LENGTH.KM"="Effort")),
   select=c("Region.Label", "Sample.Label", "Effort"))
-head(hareSamples)
-```
 
-Work out the observations
-```{r}
-hareObservations <- subset(
+observations <- subset(
   rename(hareData, c("ID"="object", "STUDY.SITE"="Region.Label", "TRANSECT.NUMBER"="Sample.Label")),
   select=c("object","Region.Label","Sample.Label"))
-head(hareObservations)
-```
 
-Now create actual data
-distanceFromTransect = DISTANCE.METRES * sin(ANGLE)
-```{r}
-hareData$distance = hareData$DISTANCE..METRES * sin(hareData$ANGLE)
+hareData$distance = abs(hareData$DISTANCE..METRES * sin(hareData$ANGLE))
 data <- subset(
-  rename(hareData, c("ID"="object", "CLUSTER.SIZE"="size")),
-  select=c("object","size","distance"))
-head(data)
+  rename(hareData, c("ID"="object", "CLUSTER.SIZE"="size", "ANGLE"="angle", "DISTANCE..METRES."="true_distance")), 
+  select=c("object","size","distance","angle","true_distance"))
 ```
 
 
 ```{r}
-halfnorm.hares <- ds(data, 
-                     key="hn", 
-                     adjustment="cos", 
-                     region.table = hareRegions, 
-                     sample.table = hareSamples,
-                     obs.table = hareObservations)
+par(mfrow=c(3,3))
+# histograms
+hist(data$distance,main="",xlab="Distance (m)")
+hist(data$size,main="",xlab="Cluster size")
+hist(data$angle,main="",xlab="Angle")
+
+# plots of distance vs. cluster size
+plot(data$distance, data$size, main="", xlab="Distance (m)", ylab="Cluster size", pch=19, cex=0.5, col=gray(0.7))
+
+# lm fit
+distance.size.linedata <- data.frame(distance=seq(0,8000,len=1000))
+distance.size.line <- lm(size~distance, data=data)
+lines(distance.size.linedata$distance, as.vector(predict(distance.size.line,distance.size.linedata)))
+
+# plots of distance vs. angle
+plot(data$distance, data$angle, main="", xlab="Distance (m)", ylab="Angle", pch=19, cex=0.5, col=gray(0.7))
+
+# lm fit
+distance.angle.linedata <- data.frame(distance=seq(0,8000,len=1000))
+distance.angle.line <- lm(angle~distance, data=data)
+lines(distance.angle.linedata$distance, as.vector(predict(distance.angle.line,distance.angle.linedata)))
+
+# plots of distance from observer vs. cluster size
+plot(data$true_distance, data$size, main="", xlab="Distance from observer (m)", ylab="Cluster size", pch=19, cex=0.5, col=gray(0.7))
+
+# lm fit
+distance_fo.size.linedata <- data.frame(true_distance=seq(0,8000,len=1000))
+distance_fo.size.line <- lm(size~true_distance, data=data)
+lines(distance_fo.size.linedata$true_distance, as.vector(predict(distance_fo.size.line,distance_fo.size.linedata)))
+
+# plots of angle vs. cluster size
+plot(data$angle, data$size, main="", xlab="Angle", ylab="Cluster size", pch=19, cex=0.5, col=gray(0.7))
+
+# lm fit
+angle.size.linedata <- data.frame(angle=seq(0,8000,len=1000))
+angle.size.line <- lm(size~angle, data=data)
+lines(angle.size.linedata$angle, as.vector(predict(angle.size.line,angle.size.linedata)))
 ```
 
 ```{r}
-par(mfrow=c(1,2))
-plot(halfnorm.hares, main="Hares, half-normal detection function")
-fit.test <- ddf.gof(halfnorm.hares$ddf)
-```
-
-```{r}
-kable(halfnorm.hares$dht$individuals$summary,format="markdown")
-```
-```{r}
-kable(halfnorm.hares$dht$individuals$D,format="markdown")
-```
-
-```{r}
-AIC(halfnorm.hares)
+hist(data$angle[data$angle < 20],main="",xlab="Angle under 20")
 ```
 
 
+
+
 ```{r}
-hazard.hares <- ds(data, key="hr",  adjustment="poly",
-                     truncation = "20%",
-                     region.table = hareRegions, 
-                     sample.table = hareSamples,
-                     obs.table = hareObservations)
+data$smear = rnorm(nrow(data), mean = 0, sd = 5)
+data$smeared_angle = abs(data$angle + data$smear)
+
+p1 <- hist(data$smeared_angle,main="",xlab="Smeared angle under 30", plot = FALSE)
+p2 <- hist(data$angle,main="",xlab="Angle under 30", plot = FALSE)
+
+
+plot(0,0,type="n",xlim=c(0,100),ylim=c(0,60),main="Affect of smearing the angle (green is affect of smearing away from blue)")
+plot(p1,col="green",density=10,angle=135,add=TRUE)
+plot(p2,col="blue",density=10,angle=45,add=TRUE)
 ```
 
 
 ```{r}
-par(mfrow=c(1,2))
-plot(hazard.hares, main="Hares, hazard detection function")
-fit.test <- ddf.gof(hazard.hares$ddf)
+sdata <- subset(data, select=c("object","size","smeared_angle","true_distance"))
+sdata$distance = abs(sdata$true_distance * sin(sdata$smeared_angle))
 ```
 
+```{r}
+d1 <- hist(sdata$distance,main="",xlab="Distance after smearing", plot = FALSE)
+d2 <- hist(data$distance,main="",xlab="Distance before smearing", plot = FALSE)
 
 
+plot(0,0,type="n",xlim=c(0,600),ylim=c(0,150),main="Affect of smearing the angle (green is affect of smearing away from blue)")
+plot(d1,col="green",density=10,angle=135,add=TRUE)
+plot(d2,col="blue",density=10,angle=45,add=TRUE)
+```
 
+```{r}
+uniform.poly <- ds(data, key="unif", adjustment="poly",
+             region.table = regions, sample.table = samples, obs.table = observations)
+halfnorm.cos <- ds(data, key="hn", adjustment="cos",
+             region.table = regions, sample.table = samples, obs.table = observations)
+hazard.herm <- ds(data, key="hr", adjustment="herm",
+             region.table = regions, sample.table = samples, obs.table = observations)
+```
 
-
-
-
-
-
-
-
+```{r}
+plot(uniform.poly)
+plot(halfnorm.cos)
+plot(hazard.herm)
+```
