@@ -33,14 +33,14 @@ observations <- subset(
   select=c("object","Region.Label","Sample.Label"))
 
 hareData$distance = abs(round(hareData$DISTANCE..METRES * sin(hareData$ANGLE * pi / 180)))
-data <- subset(
+data <- na.omit(subset(
   rename(hareData, c("ID"="object", "CLUSTER.SIZE"="size", "ANGLE"="angle", "DISTANCE..METRES."="true_distance")), 
-  select=c("object","size","distance","angle","true_distance"))
+  select=c("object","size","distance","angle","true_distance")))
 
 # and now smear angle
 # * the angles are already all positive, so smear upwards 
 # * angles more or less bucketted in 10s, so smear up to 10
-data$smear = runif(nrow(data), max=1, min=0)
+data$smear = runif(nrow(data), max=0.5, min=-0.5)
 data$smeared_angle = abs(data$angle + (data$smear * 20))
 data$new_distance = abs(round(data$true_distance * sin(data$smeared_angle * pi / 180)))
 ```
@@ -85,17 +85,54 @@ angle.size.linedata <- data.frame(angle=seq(0,8000,len=1000))
 angle.size.line <- lm(size~angle, data=data)
 lines(angle.size.linedata$angle, as.vector(predict(angle.size.line,angle.size.linedata)))
 ```
-
-
 ```{r}
-p1 <- hist(data$smeared_angle,main="",xlab="Smeared angle", plot = FALSE)
-p2 <- hist(data$angle,main="",xlab="Angle", plot = FALSE)
-
-plot(0,0,type="n",xlim=c(0,100),ylim=c(0,60),main="Affect of smearing the angle (green is affect of smearing away from blue)")
-plot(p1,col="green",density=10,angle=135,add=TRUE)
-plot(p2,col="blue",density=10,angle=45,add=TRUE)
+par(mfrow=c(2,2))
+# histograms
+hist(data$distance,main="",xlab="Perpendicular Distance (m)", breaks=12)
+hist(data$true_distance,main="",xlab="Distance from Observer (m)", breaks=12)
+hist(data$angle,main="",xlab="Angle (degrees)", breaks=90)
 ```
 
+```{r}
+par(mfrow=c(2,2))
+
+# and now smear angle
+# * the angles are already all positive, so smear upwards 
+# * angles more or less bucketted in 10s, so smear up to 10
+data$smear = runif(nrow(data), max=0.5, min=-0.5)
+data$smeared_angle_10 = abs(data$angle + (data$smear * 10))
+data$new_distance_10 = abs(round(data$true_distance * sin(data$smeared_angle_10 * pi / 180)))
+data$smeared_angle_20 = abs(data$angle + (data$smear * 20))
+data$new_distance_20 = abs(round(data$true_distance * sin(data$smeared_angle_20 * pi / 180)))
+
+
+
+hist(data$smeared_angle_10,main="Smeared with 10 degree range",xlab="Angle (degrees)", breaks=90)
+hist(data$new_distance_10,main="",xlab="Perpendicular Distance (m)", breaks=12)
+
+hist(data$smeared_angle_20,main="Smeared with 20 degree range",xlab="Angle (degrees)", breaks=90)
+hist(data$new_distance_20,main="",xlab="Perpendicular Distance (m)", breaks=12)
+
+```
+
+Many animals at angle 0 are very close to the observer, so the affects of smearing the angle will be minimal
+```{r}
+hist(data$true_distance[data$angle < 10],main="",xlab="Distance (m) from observer", breaks=100)
+```
+
+```{r}
+# plots of distance vs. cluster size
+plot(data$distance, data$size, main="", xlab="Distance (m)", ylab="Cluster size", pch=19, cex=0.5, col=gray(0.7))
+
+# lm fit
+distance.size.linedata <- data.frame(distance=seq(0,8000,len=1000))
+distance.size.line <- lm(size~distance, data=data)
+lines(distance.size.linedata$distance, as.vector(predict(distance.size.line,distance.size.linedata)))
+
+clusters <- data[data[, "distance"] != NA, ]
+
+print(data)
+```
 
 ```{r}
 d1 <- hist(data$new_distance,main="",xlab="Distance after smearing", plot = FALSE)
@@ -109,17 +146,15 @@ plot(d2,col="blue",density=10,angle=45,add=TRUE)
 
 
 ```{r}
-smeared.data <- rename(subset(data, select=c("object","size","new_distance")), c("new_distance"="distance")) 
+smeared.data <- rename(subset(data, select=c("object","size","new_distance_20")), c("new_distance_20"="distance")) 
 ```
 
-```{r}
-d.uniform.poly <- ds(data, key="hr", adjustment="herm", truncation = 400,
-             region.table = regions, sample.table = samples, obs.table = observations)
-s.uniform.poly <- ds(smeared.data, key="hr", adjustment="herm", truncation = 400,
-             region.table = regions, sample.table = samples, obs.table = observations)
-```
 
 ```{r}
-ds.gof(d.uniform.poly)
-ds.gof(s.uniform.poly)
+model <- ds(data, key="hn", adjustment="cos", truncation=400,
+            cutpoints = c(0,25,50,100,200,300,400),
+             region.table = regions, sample.table = samples, obs.table = observations)
+summary(model)
+ds.gof(model)
+plot(model)
 ```
