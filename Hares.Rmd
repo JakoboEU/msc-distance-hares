@@ -101,7 +101,7 @@ smeared.data <- rename(subset(data, select=c("object","size","new_distance_20"))
 
 
 ```{r}
-model <- ds(data , key="hr", adjustment="herm", truncation=400, 
+model <- ds(data , key="hr", adjustment="herm", truncation=400, formula=~size,
             cutpoints = c(0,25,50,90,150,220,300,400),
              region.table = regions, sample.table = samples, obs.table = observations)
 summary(model)
