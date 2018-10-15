@@ -34,62 +34,16 @@ observations <- subset(
 
 hareData$distance = abs(round(hareData$DISTANCE..METRES * sin(hareData$ANGLE * pi / 180)))
 data <- na.omit(subset(
-  rename(hareData, c("ID"="object", "CLUSTER.SIZE"="size", "ANGLE"="angle", "DISTANCE..METRES."="true_distance")), 
-  select=c("object","size","distance","angle","true_distance")))
-
-# and now smear angle
-# * the angles are already all positive, so smear upwards 
-# * angles more or less bucketted in 10s, so smear up to 10
-data$smear = runif(nrow(data), max=0.5, min=-0.5)
-data$smeared_angle = abs(data$angle + (data$smear * 20))
-data$new_distance = abs(round(data$true_distance * sin(data$smeared_angle * pi / 180)))
+  rename(hareData, c("ID"="object", "CLUSTER.SIZE"="size", "ANGLE"="angle", "DISTANCE..METRES."="distance_from_obs")), 
+  select=c("object","size","distance","angle","distance_from_obs")))
 ```
 
 
-```{r}
-par(mfrow=c(3,3))
-# histograms
-hist(data$distance,main="",xlab="Distance (m)")
-hist(data$size,main="",xlab="Cluster size")
-hist(data$angle,main="",xlab="Angle")
-
-# plots of distance vs. cluster size
-plot(data$distance, data$size, main="", xlab="Distance (m)", ylab="Cluster size", pch=19, cex=0.5, col=gray(0.7))
-
-# lm fit
-distance.size.linedata <- data.frame(distance=seq(0,8000,len=1000))
-distance.size.line <- lm(size~distance, data=data)
-lines(distance.size.linedata$distance, as.vector(predict(distance.size.line,distance.size.linedata)))
-
-# plots of distance vs. angle
-plot(data$distance, data$angle, main="", xlab="Distance (m)", ylab="Angle", pch=19, cex=0.5, col=gray(0.7))
-
-# lm fit
-distance.angle.linedata <- data.frame(distance=seq(0,8000,len=1000))
-distance.angle.line <- lm(angle~distance, data=data)
-lines(distance.angle.linedata$distance, as.vector(predict(distance.angle.line,distance.angle.linedata)))
-
-# plots of distance from observer vs. cluster size
-plot(data$true_distance, data$size, main="", xlab="Distance from observer (m)", ylab="Cluster size", pch=19, cex=0.5, col=gray(0.7))
-
-# lm fit
-distance_fo.size.linedata <- data.frame(true_distance=seq(0,8000,len=1000))
-distance_fo.size.line <- lm(size~true_distance, data=data)
-lines(distance_fo.size.linedata$true_distance, as.vector(predict(distance_fo.size.line,distance_fo.size.linedata)))
-
-# plots of angle vs. cluster size
-plot(data$angle, data$size, main="", xlab="Angle", ylab="Cluster size", pch=19, cex=0.5, col=gray(0.7))
-
-# lm fit
-angle.size.linedata <- data.frame(angle=seq(0,8000,len=1000))
-angle.size.line <- lm(size~angle, data=data)
-lines(angle.size.linedata$angle, as.vector(predict(angle.size.line,angle.size.linedata)))
-```
 ```{r}
 par(mfrow=c(2,2))
 # histograms
 hist(data$distance,main="",xlab="Perpendicular Distance (m)", breaks=12)
-hist(data$true_distance,main="",xlab="Distance from Observer (m)", breaks=12)
+hist(data$distance_from_obs,main="",xlab="Distance from Observer (m)", breaks=12)
 hist(data$angle,main="",xlab="Angle (degrees)", breaks=90)
 ```
 
@@ -101,9 +55,9 @@ par(mfrow=c(2,2))
 # * angles more or less bucketted in 10s, so smear up to 10
 data$smear = runif(nrow(data), max=0.5, min=-0.5)
 data$smeared_angle_10 = abs(data$angle + (data$smear * 10))
-data$new_distance_10 = abs(round(data$true_distance * sin(data$smeared_angle_10 * pi / 180)))
+data$new_distance_10 = abs(round(data$distance_from_obs * sin(data$smeared_angle_10 * pi / 180)))
 data$smeared_angle_20 = abs(data$angle + (data$smear * 20))
-data$new_distance_20 = abs(round(data$true_distance * sin(data$smeared_angle_20 * pi / 180)))
+data$new_distance_20 = abs(round(data$distance_from_obs * sin(data$smeared_angle_20 * pi / 180)))
 
 
 
@@ -117,7 +71,16 @@ hist(data$new_distance_20,main="",xlab="Perpendicular Distance (m)", breaks=12)
 
 Many animals at angle 0 are very close to the observer, so the affects of smearing the angle will be minimal
 ```{r}
-hist(data$true_distance[data$angle < 10],main="",xlab="Distance (m) from observer", breaks=100)
+hist(data$distance_from_obs[data$angle < 10],main="",xlab="Distance (m) from observer", breaks=100)
+```
+
+```{r}
+distance_20_plot <- hist(data$new_distance_20, plot = FALSE)
+distance_plot <- hist(data$distance,plot = FALSE)
+
+plot(0,0,type="n",xlim=c(0,600),ylim=c(0,150),main="Affect of smearing the angle on distance (green is affect of smearing away from blue)")
+plot(distance_20_plot,col="green",density=10,angle=135,add=TRUE)
+plot(distance_plot,col="blue",density=10,angle=45,add=TRUE)
 ```
 
 ```{r}
@@ -128,21 +91,8 @@ plot(data$distance, data$size, main="", xlab="Distance (m)", ylab="Cluster size"
 distance.size.linedata <- data.frame(distance=seq(0,8000,len=1000))
 distance.size.line <- lm(size~distance, data=data)
 lines(distance.size.linedata$distance, as.vector(predict(distance.size.line,distance.size.linedata)))
-
-clusters <- data[data[, "distance"] != NA, ]
-
-print(data)
 ```
 
-```{r}
-d1 <- hist(data$new_distance,main="",xlab="Distance after smearing", plot = FALSE)
-d2 <- hist(data$distance,main="",xlab="Distance before smearing", plot = FALSE)
-
-
-plot(0,0,type="n",xlim=c(0,600),ylim=c(0,150),main="Affect of smearing the angle on distance (green is affect of smearing away from blue)")
-plot(d1,col="green",density=10,angle=135,add=TRUE)
-plot(d2,col="blue",density=10,angle=45,add=TRUE)
-```
 
 
 ```{r}
@@ -151,8 +101,8 @@ smeared.data <- rename(subset(data, select=c("object","size","new_distance_20"))
 
 
 ```{r}
-model <- ds(data, key="hr", adjustment="herm", truncation=400,
-            cutpoints = c(0,25,50,100,200,300,400),
+model <- ds(smeared.data , key="hr", adjustment="herm", truncation=200, 
+            cutpoints = c(0,1,50,100,150,200),
              region.table = regions, sample.table = samples, obs.table = observations)
 summary(model)
 ds.gof(model)
