@@ -42,7 +42,7 @@ data <- na.omit(subset(
 
 ```{r}
 par(mfrow=c(2,2))
-# histograms
+# Looking at distance and angle data
 hist(data$distance,main="",xlab="Perpendicular Distance (m)", breaks=60)
 hist(data$distance_from_obs,main="",xlab="Distance from Observer (m)", breaks=60)
 hist(data$distance_from_obs[data$distance_from_obs < 200],main="",xlab="Distance from Observer (m)", breaks=50)
@@ -52,7 +52,7 @@ hist(data$angle,main="",xlab="Angle (degrees)", breaks=90)
 ```{r}
 par(mfrow=c(2,2))
 
-# and now smear angle
+# Smearing angle
 # * the angles are already all positive, so smear upwards 
 # * angles more or less bucketted in 10s, so smear up to 10
 data$smear = runif(nrow(data), max=0.5, min=-0.5)
